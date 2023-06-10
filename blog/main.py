@@ -1,3 +1,4 @@
+from typing import List
 from fastapi import FastAPI, Depends, Response, status, HTTPException
 from . import schemas, models
 from .database import engine, SessionLocal
@@ -30,47 +31,46 @@ def create(request: schemas.Blog, db: Session = Depends(get_db)):
 def update(id, request: schemas.Blog, db: Session = Depends(get_db)):
     blog = db.query(models.Blog).filter(models.Blog.id == id).first()
 
-    # Check if the blog object exists
     if blog is not None:
-        # Update the desired attributes
         blog.title = request.title
         blog.body = request.body
 
-    # Commit the changes to the database
     if not blog:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"blog for {id} is not available",
         )
 
-    db.commit()   
+    db.commit()
     return "done"
 
 
 @app.delete("/blog/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def destroy(id, db: Session = Depends(get_db)):
-    blog = (
-        db.query(models.Blog)
-        .filter(models.Blog.id == id)
-        .delete(synchronize_session=False)
-    )
+    blog = db.query(models.Blog).filter(models.Blog.id == id)
+    if not blog.first():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"blog for {id} is not available",
+        )
+    blog.delete(synchronize_session=False)
     db.commit()
 
     return {"done"}
 
 
-@app.get("/blog")
+@app.get("/blog", response_model=List[schemas.ShowBlog])
 def all(db: Session = Depends(get_db)):
     blogs = db.query(models.Blog).all()
     return blogs
 
-
-@app.get("/blog/{id}", status_code=status.HTTP_200_OK)
+@app.get("/blog/{id}", status_code=status.HTTP_200_OK, response_model=schemas.ShowBlog)
 def show(id, response: Response, db: Session = Depends(get_db)):
-    blog = db.query(models.Blog).filter(models.Blog.id == id).all()
+    blog = db.query(models.Blog).filter(models.Blog.id == id).first()
     if not blog:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"blog for {id} is not available",
         )
+   
     return blog
