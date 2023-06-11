@@ -2,3 +2,5 @@ fastapi
 typing
 uvicorn
 sqlalchemy
+passlib
+bcrypt
